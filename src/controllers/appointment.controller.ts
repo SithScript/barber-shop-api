@@ -9,24 +9,33 @@ export class AppointmentController {
         return res.status(200).json(appointmentsRepository);
     }
 
+    // GET /appointments/:id - Buscar agendamento por ID
+    public getById(req: Request, res: Response): Response {
+        const { id } = req.params;
+        const appointment = appointmentsRepository.find(a => a.id === id);
+
+        if (!appointment) {
+            return res.status(404).json({ error: "Agendamento não encontrado." });
+        }
+
+        return res.status(200).json(appointment);
+    }
+
     // POST /appointments - Criar novo agendamento
     public create(req: Request, res: Response): Response {
         const { clientName, clientPhone, serviceId, dateTime } = req.body;
 
-        // 1. Validação de campos obrigatórios
         if (!clientName || !clientPhone || !serviceId || !dateTime) {
             return res.status(400).json({
                 error: "Os campos clientName, clientPhone, serviceId e dateTime são obrigatórios."
             });
         }
 
-        // 2. Regra de Negócio: Verificar se o serviço agendado existe no catálogo
         const serviceExists = servicesRepository.some(s => s.id === String(serviceId));
         if (!serviceExists) {
             return res.status(404).json({ error: "O serviço informado não existe." });
         }
 
-        // 3. Criação do novo agendamento
         const newAppointment: Appointment = {
             id: String(appointmentsRepository.length + 1001),
             clientName,
@@ -38,5 +47,29 @@ export class AppointmentController {
 
         appointmentsRepository.push(newAppointment);
         return res.status(201).json(newAppointment);
+    }
+
+    // PATCH /appointments/:id/status - Atualizar apenas o status do agendamento
+    public updateStatus(req: Request, res: Response): Response {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Lista de status permitidos
+        const validStatuses = ["scheduled", "completed", "canceled"];
+
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({
+                error: "Status inválido. Use apenas: 'scheduled', 'completed' ou 'canceled'."
+            });
+        }
+
+        const appointment = appointmentsRepository.find(a => a.id === id);
+
+        if (!appointment) {
+            return res.status(404).json({ error: "Agendamento não encontrado." });
+        }
+
+        appointment.status = status;
+        return res.status(200).json(appointment);
     }
 }

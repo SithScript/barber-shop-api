@@ -5,6 +5,8 @@ const appointmentRoutes = Router();
 const appointmentController = new AppointmentController();
 
 appointmentRoutes.get("/appointments", (req, res) => appointmentController.list(req, res));
+appointmentRoutes.get("/appointments/:id", (req, res) => appointmentController.getById(req, res));
 appointmentRoutes.post("/appointments", (req, res) => appointmentController.create(req, res));
+appointmentRoutes.patch("/appointments/:id/status", (req, res) => appointmentController.updateStatus(req, res));
 
 export { appointmentRoutes };
