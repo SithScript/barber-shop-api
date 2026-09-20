@@ -25,17 +25,31 @@ export class AppointmentController {
     public create(req: Request, res: Response): Response {
         const { clientName, clientPhone, serviceId, dateTime } = req.body;
 
+        // 1. Validação de campos obrigatórios
         if (!clientName || !clientPhone || !serviceId || !dateTime) {
             return res.status(400).json({
                 error: "Os campos clientName, clientPhone, serviceId e dateTime são obrigatórios."
             });
         }
 
+        // 2. Regra de Negócio: Verificar se o serviço existe
         const serviceExists = servicesRepository.some(s => s.id === String(serviceId));
         if (!serviceExists) {
             return res.status(404).json({ error: "O serviço informado não existe." });
         }
 
+        // 3. Regra de Negócio: Verificar se já existe agendamento ativo no mesmo horário
+        const hasConflict = appointmentsRepository.some(
+            a => a.dateTime === dateTime && a.status !== "canceled"
+        );
+
+        if (hasConflict) {
+            return res.status(409).json({
+                error: "Já existe um agendamento para este dia e horário."
+            });
+        }
+
+        // 4. Criação do novo agendamento
         const newAppointment: Appointment = {
             id: String(appointmentsRepository.length + 1001),
             clientName,
@@ -54,7 +68,6 @@ export class AppointmentController {
         const { id } = req.params;
         const { status } = req.body;
 
-        // Lista de status permitidos
         const validStatuses = ["scheduled", "completed", "canceled"];
 
         if (!status || !validStatuses.includes(status)) {
