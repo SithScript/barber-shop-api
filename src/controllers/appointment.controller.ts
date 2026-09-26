@@ -1,88 +1,127 @@
-import { Request, Response } from "express";
-import { appointmentsRepository } from "../repositories/appointment.repository.js";
-import { servicesRepository } from "../repositories/catalog.repository.js";
-import { Appointment } from "../models/appointment.model.js";
+import type { Request, Response } from "express";
+import appointmentRepository from "../repositories/appointment.repository.js";
 
-export class AppointmentController {
-    // GET /appointments - Listar todos os agendamentos
-    public list(req: Request, res: Response): Response {
-        return res.status(200).json(appointmentsRepository);
-    }
+async function getAll(req: Request, res: Response) {
+    try {
+        const appointments = await appointmentRepository.findAll();
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error("Erro ao buscar agendamentos: ", error);
 
-    // GET /appointments/:id - Buscar agendamento por ID
-    public getById(req: Request, res: Response): Response {
-        const { id } = req.params;
-        const appointment = appointmentsRepository.find(a => a.id === id);
-
-        if (!appointment) {
-            return res.status(404).json({ error: "Agendamento não encontrado." });
-        }
-
-        return res.status(200).json(appointment);
-    }
-
-    // POST /appointments - Criar novo agendamento
-    public create(req: Request, res: Response): Response {
-        const { clientName, clientPhone, serviceId, dateTime } = req.body;
-
-        // 1. Validação de campos obrigatórios
-        if (!clientName || !clientPhone || !serviceId || !dateTime) {
-            return res.status(400).json({
-                error: "Os campos clientName, clientPhone, serviceId e dateTime são obrigatórios."
-            });
-        }
-
-        // 2. Regra de Negócio: Verificar se o serviço existe
-        const serviceExists = servicesRepository.some(s => s.id === String(serviceId));
-        if (!serviceExists) {
-            return res.status(404).json({ error: "O serviço informado não existe." });
-        }
-
-        // 3. Regra de Negócio: Verificar se já existe agendamento ativo no mesmo horário
-        const hasConflict = appointmentsRepository.some(
-            a => a.dateTime === dateTime && a.status !== "canceled"
-        );
-
-        if (hasConflict) {
-            return res.status(409).json({
-                error: "Já existe um agendamento para este dia e horário."
-            });
-        }
-
-        // 4. Criação do novo agendamento
-        const newAppointment: Appointment = {
-            id: String(appointmentsRepository.length + 1001),
-            clientName,
-            clientPhone,
-            serviceId: String(serviceId),
-            dateTime,
-            status: "scheduled"
-        };
-
-        appointmentsRepository.push(newAppointment);
-        return res.status(201).json(newAppointment);
-    }
-
-    // PATCH /appointments/:id/status - Atualizar apenas o status do agendamento
-    public updateStatus(req: Request, res: Response): Response {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        const validStatuses = ["scheduled", "completed", "canceled"];
-
-        if (!status || !validStatuses.includes(status)) {
-            return res.status(400).json({
-                error: "Status inválido. Use apenas: 'scheduled', 'completed' ou 'canceled'."
-            });
-        }
-
-        const appointment = appointmentsRepository.find(a => a.id === id);
-
-        if (!appointment) {
-            return res.status(404).json({ error: "Agendamento não encontrado." });
-        }
-
-        appointment.status = status;
-        return res.status(200).json(appointment);
+        res.status(500).json({
+            message: "Erro ao buscar agendamentos.",
+        });
     }
 }
+
+async function getById(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID do agendamento não informado.",
+        });
+    }
+
+    try {
+        const appointment = await appointmentRepository.findById(id);
+
+        res.status(200).json(appointment);
+    } catch (error) {
+        console.error("Erro ao buscar agendamento: ", error);
+
+        res.status(404).json({
+            message: "Agendamento não encontrado.",
+        });
+    }
+}
+
+async function create(req: Request, res: Response) {
+    try {
+        const appointment = await appointmentRepository.create(req.body);
+
+        res.status(201).json(appointment);
+    } catch (error) {
+        console.error("Erro ao criar agendamento: ", error);
+
+        res.status(500).json({
+            message: "Erro ao criar agendamento.",
+        });
+    }
+}
+
+async function updateStatus(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID do agendamento não informado.",
+        });
+    }
+
+    try {
+        const { status } = req.body;
+        const appointment = await appointmentRepository.updateStatus(id, status);
+
+        res.status(200).json(appointment);
+    } catch (error) {
+        console.error("Erro ao atualizar status do agendamento: ", error);
+
+        res.status(500).json({
+            message: "Erro ao atualizar status do agendamento.",
+        });
+    }
+}
+
+async function update(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID do agendamento não informado.",
+        });
+    }
+
+    try {
+        const appointment = await appointmentRepository.update(id, req.body);
+
+        res.status(200).json(appointment);
+    } catch (error) {
+        console.error("Erro ao atualizar agendamento: ", error);
+
+        res.status(500).json({
+            message: "Erro ao atualizar agendamento.",
+        });
+    }
+}
+
+async function remove(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID do agendamento não informado.",
+        });
+    }
+
+    try {
+        const appointment = await appointmentRepository.remove(id);
+
+        res.status(200).json(appointment);
+    } catch (error) {
+        console.error("Erro ao deletar agendamento: ", error);
+
+        res.status(500).json({
+            message: "Erro ao deletar agendamento.",
+        });
+    }
+}
+
+export default {
+    getAll,
+    getById,
+    create,
+    updateStatus,
+    update,
+    remove
+};

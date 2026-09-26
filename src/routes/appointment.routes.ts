@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { AppointmentController } from "../controllers/appointment.controller.js";
+import appointmentController from "../controllers/appointment.controller.js";
 
-const appointmentRoutes = Router();
-const appointmentController = new AppointmentController();
+const router = Router(); //Rota dos agendamentos
 
-appointmentRoutes.get("/appointments", (req, res) => appointmentController.list(req, res));
-appointmentRoutes.get("/appointments/:id", (req, res) => appointmentController.getById(req, res));
-appointmentRoutes.post("/appointments", (req, res) => appointmentController.create(req, res));
-appointmentRoutes.patch("/appointments/:id/status", (req, res) => appointmentController.updateStatus(req, res));
+router.get("/", appointmentController.getAll);
+router.get("/:id", appointmentController.getById);
+router.post("/", appointmentController.create);
+router.patch("/:id/status", appointmentController.updateStatus);
+router.put("/:id", appointmentController.update);
+router.delete("/:id", appointmentController.remove);
 
-export { appointmentRoutes };
+export default router;

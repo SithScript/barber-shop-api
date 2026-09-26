@@ -1,73 +1,96 @@
-import { Request, Response } from "express";
-import { categoriesRepository } from "../repositories/catalog.repository.js";
-import { Category } from "../models/catalog.model.js";
+import type { Request, Response } from "express";
+import categoryRepository from "../repositories/category.repository.js";
 
-export class CategoryController {
-    // GET /categories - Listar todas as categorias
-    public list(req: Request, res: Response): Response {
-        return res.status(200).json(categoriesRepository);
-    }
-
-    // GET /categories/:id - Buscar por ID
-    public getById(req: Request, res: Response): Response {
-        const { id } = req.params;
-        const category = categoriesRepository.find(c => c.id === id);
-
-        if (!category) {
-            return res.status(404).json({ error: "Categoria não encontrada." });
-        }
-
-        return res.status(200).json(category);
-    }
-
-    // POST /categories - Criar nova categoria
-    public create(req: Request, res: Response): Response {
-        const { name, description } = req.body;
-
-        if (!name) {
-            return res.status(400).json({ error: "O nome da categoria é obrigatório." });
-        }
-
-        const newCategory: Category = {
-            id: String(categoriesRepository.length + 1),
-            name,
-            description
-        };
-
-        categoriesRepository.push(newCategory);
-        return res.status(201).json(newCategory);
-    }
-
-    // PUT /categories/:id - Atualizar categoria existente
-    public update(req: Request, res: Response): Response {
-        const { id } = req.params;
-        const { name, description } = req.body;
-
-        const categoryIndex = categoriesRepository.findIndex(c => c.id === id);
-
-        if (categoryIndex === -1) {
-            return res.status(404).json({ error: "Categoria não encontrada." });
-        }
-
-        if (name) categoriesRepository[categoryIndex].name = name;
-        if (description !== undefined) categoriesRepository[categoryIndex].description = description;
-
-        return res.status(200).json(categoriesRepository[categoryIndex]);
-    }
-
-    // DELETE /categories/:id - Remover categoria
-    public delete(req: Request, res: Response): Response {
-        const { id } = req.params;
-
-        const categoryIndex = categoriesRepository.findIndex(c => c.id === id);
-
-        if (categoryIndex === -1) {
-            return res.status(404).json({ error: "Categoria não encontrada." });
-        }
-
-        // Remove do array
-        categoriesRepository.splice(categoryIndex, 1);
-
-        return res.status(204).send(); // 204 No Content (sucesso sem corpo de resposta)
+async function getAll(req: Request, res: Response) {
+    try {
+        const categories = await categoryRepository.findAll();
+        res.status(200).json(categories);
+    } catch (error) {
+        console.error("Erro ao buscar categorias: ", error);
+        res.status(500).json({
+            message: "Erro ao buscar categorias.",
+        });
     }
 }
+
+async function getById(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID da categoria não informado.",
+        });
+    }
+
+    try {
+        const category = await categoryRepository.findById(id);
+        res.status(200).json(category);
+    } catch (error) {
+        console.error("Erro ao buscar categoria: ", error);
+        res.status(404).json({
+            message: "Categoria não encontrada.",
+        });
+    }
+}
+
+async function create(req: Request, res: Response) {
+    try {
+        const category = await categoryRepository.create(req.body);
+        res.status(201).json(category);
+    } catch (error) {
+        console.error("Erro ao criar categoria: ", error);
+        res.status(500).json({
+            message: "Erro ao criar categoria.",
+        });
+    }
+}
+
+async function update(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID da categoria não informado.",
+        });
+    }
+
+    try {
+        const category = await categoryRepository.update(id, req.body);
+        res.status(200).json(category);
+    } catch (error) {
+        console.error("Erro ao atualizar categoria: ", error);
+        res.status(500).json({
+            message: "Erro ao atualizar categoria.",
+        });
+    }
+}
+
+async function remove(req: Request<{ id: string }>, res: Response) {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({
+            message: "ID da categoria não informado.",
+        });
+    }
+
+    try {
+        await categoryRepository.remove(id);
+        res.status(200).json({
+            message: "Categoria removida com sucesso.",
+        });
+    } catch (error) {
+        console.error("Erro ao remover categoria: ", error);
+        res.status(500).json({
+            message: "Erro ao remover categoria.",
+        });
+    }
+}
+
+export default {
+    getAll,
+    getById,
+    create,
+    update,
+    remove,
+};
