@@ -37,7 +37,15 @@ async function getById(req: Request<{ id: string }>, res: Response) {
 }
 
 async function create(req: Request, res: Response) {
+    const {date_time} =  req.body
     try {
+        const existengAppointment = await appointmentRepository.findActiveByDateTime(date_time);
+
+        if (existengAppointment.length > 0) {
+            return res.status(409).json({
+                message: "Já existe agendamento para esse horário."
+            });
+        }
         const appointment = await appointmentRepository.create(req.body);
 
         res.status(201).json(appointment);
@@ -105,9 +113,11 @@ async function remove(req: Request<{ id: string }>, res: Response) {
     }
 
     try {
-        const appointment = await appointmentRepository.remove(id);
+        await appointmentRepository.remove(id);
 
-        res.status(200).json(appointment);
+        res.status(200).json({
+            message: "Agendamento removido com sucesso."
+        });
     } catch (error) {
         console.error("Erro ao deletar agendamento: ", error);
 
