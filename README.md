@@ -134,7 +134,7 @@ Para executar a aplicação é necessário criar o arquivo `.env` contendo as cr
 
 ```env
 SUPABASE_URL=[https://seu-projeto.supabase.co](https://seu-projeto.supabase.co)
-SUPABASE_KEY=sua-chave-anon-publica
+SUPABASE_SECRET_KEY=sua-chave-anon-publica
 PORT=3001
 
 ```
