@@ -1,137 +1,86 @@
 import type { Request, Response } from "express";
-import appointmentRepository from "../repositories/appointment.repository.js";
+import type { AppointmentRepository } from "../repositories/appointment.repository.js";
 
-async function getAll(req: Request, res: Response) {
-    try {
-        const appointments = await appointmentRepository.findAll();
-        res.status(200).json(appointments);
-    } catch (error) {
-        console.error("Erro ao buscar agendamentos: ", error);
-
-        res.status(500).json({
-            message: "Erro ao buscar agendamentos.",
-        });
-    }
-}
-
-async function getById(req: Request<{ id: string }>, res: Response) {
-    const { id } = req.params;
-
-    if (!id) {
-        return res.status(400).json({
-            message: "ID do agendamento não informado.",
-        });
+export class AppointmentController {
+    constructor(private appointmentRepository: AppointmentRepository) {
+        this.getAll = this.getAll.bind(this);
+        this.getById = this.getById.bind(this);
+        this.create = this.create.bind(this);
+        this.update = this.update.bind(this);
+        this.updateStatus = this.updateStatus.bind(this);
+        this.remove = this.remove.bind(this);
     }
 
-    try {
-        const appointment = await appointmentRepository.findById(id);
-
-        res.status(200).json(appointment);
-    } catch (error) {
-        console.error("Erro ao buscar agendamento: ", error);
-
-        res.status(404).json({
-            message: "Agendamento não encontrado.",
-        });
-    }
-}
-
-async function create(req: Request, res: Response) {
-    const {date_time} =  req.body
-    try {
-        const existengAppointment = await appointmentRepository.findActiveByDateTime(date_time);
-
-        if (existengAppointment.length > 0) {
-            return res.status(409).json({
-                message: "Já existe agendamento para esse horário."
-            });
+    async getAll(req: Request, res: Response) {
+        try {
+            const appointments = await this.appointmentRepository.findAll();
+            return res.status(200).json(appointments);
+        } catch (error) {
+            console.error("Erro ao buscar agendamentos: ", error);
+            return res.status(500).json({ message: "Erro ao buscar agendamentos." });
         }
-        const appointment = await appointmentRepository.create(req.body);
+    }
 
-        res.status(201).json(appointment);
-    } catch (error) {
-        console.error("Erro ao criar agendamento: ", error);
+    async getById(req: Request<{ id: string }>, res: Response) {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "ID não informado." });
 
-        res.status(500).json({
-            message: "Erro ao criar agendamento.",
-        });
+        try {
+            const appointment = await this.appointmentRepository.findById(id);
+            return res.status(200).json(appointment);
+        } catch (error) {
+            console.error("Erro ao buscar agendamento: ", error);
+            return res.status(404).json({ message: "Agendamento não encontrado." });
+        }
+    }
+
+    async create(req: Request, res: Response) {
+        try {
+            const appointment = await this.appointmentRepository.create(req.body);
+            return res.status(201).json(appointment);
+        } catch (error) {
+            console.error("Erro ao criar agendamento: ", error);
+            return res.status(500).json({ message: "Erro ao criar agendamento." });
+        }
+    }
+
+    async updateStatus(req: Request<{ id: string }>, res: Response) {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "ID não informado." });
+
+        try {
+            const { status } = req.body;
+            const appointment = await this.appointmentRepository.updateStatus(id, status);
+            return res.status(200).json(appointment);
+        } catch (error) {
+            console.error("Erro ao atualizar status: ", error);
+            return res.status(500).json({ message: "Erro ao atualizar status do agendamento." });
+        }
+    }
+
+    async update(req: Request<{ id: string }>, res: Response) {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "ID não informado." });
+
+        try {
+            const appointment = await this.appointmentRepository.update(id, req.body);
+            return res.status(200).json(appointment);
+        } catch (error) {
+            console.error("Erro ao atualizar agendamento: ", error);
+            return res.status(500).json({ message: "Erro ao atualizar agendamento." });
+        }
+    }
+
+    async remove(req: Request<{ id: string }>, res: Response) {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "ID não informado." });
+
+        try {
+            const appointment = await this.appointmentRepository.remove(id);
+            return res.status(200).json(appointment);
+        } catch (error) {
+            console.error("Erro ao deletar agendamento: ", error);
+            return res.status(500).json({ message: "Erro ao deletar agendamento." });
+        }
     }
 }
-
-async function updateStatus(req: Request<{ id: string }>, res: Response) {
-    const { id } = req.params;
-
-    if (!id) {
-        return res.status(400).json({
-            message: "ID do agendamento não informado.",
-        });
-    }
-
-    try {
-        const { status } = req.body;
-        const appointment = await appointmentRepository.updateStatus(id, status);
-
-        res.status(200).json(appointment);
-    } catch (error) {
-        console.error("Erro ao atualizar status do agendamento: ", error);
-
-        res.status(500).json({
-            message: "Erro ao atualizar status do agendamento.",
-        });
-    }
-}
-
-async function update(req: Request<{ id: string }>, res: Response) {
-    const { id } = req.params;
-
-    if (!id) {
-        return res.status(400).json({
-            message: "ID do agendamento não informado.",
-        });
-    }
-
-    try {
-        const appointment = await appointmentRepository.update(id, req.body);
-
-        res.status(200).json(appointment);
-    } catch (error) {
-        console.error("Erro ao atualizar agendamento: ", error);
-
-        res.status(500).json({
-            message: "Erro ao atualizar agendamento.",
-        });
-    }
-}
-
-async function remove(req: Request<{ id: string }>, res: Response) {
-    const { id } = req.params;
-
-    if (!id) {
-        return res.status(400).json({
-            message: "ID do agendamento não informado.",
-        });
-    }
-
-    try {
-        await appointmentRepository.remove(id);
-
-        res.status(200).json({
-            message: "Agendamento removido com sucesso."
-        });
-    } catch (error) {
-        console.error("Erro ao deletar agendamento: ", error);
-
-        res.status(500).json({
-            message: "Erro ao deletar agendamento.",
-        });
-    }
-}
-
-export default {
-    getAll,
-    getById,
-    create,
-    updateStatus,
-    update,
-    remove
-};
