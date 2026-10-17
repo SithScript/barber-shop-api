@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import type { AppointmentRepository } from "../repositories/appointment.repository.js";
+import { NotFoundError } from "../errors/NotFoundError.js";
+import { ValidationError } from "../errors/ValidationError.js";
 
 export class AppointmentController {
     constructor(private appointmentRepository: AppointmentRepository) {
@@ -15,72 +17,145 @@ export class AppointmentController {
         try {
             const appointments = await this.appointmentRepository.findAll();
             return res.status(200).json(appointments);
-        } catch (error) {
-            console.error("Erro ao buscar agendamentos: ", error);
-            return res.status(500).json({ message: "Erro ao buscar agendamentos." });
+        } catch (error: any) {
+            return res.status(500).json({ error: error.message || "Erro interno do servidor." });
         }
     }
 
     async getById(req: Request<{ id: string }>, res: Response) {
         const { id } = req.params;
-        if (!id) return res.status(400).json({ message: "ID não informado." });
 
         try {
+            if (!id) {
+                throw new ValidationError("O ID do agendamento é obrigatório.");
+            }
+
             const appointment = await this.appointmentRepository.findById(id);
+
+            if (!appointment) {
+                throw new NotFoundError("Agendamento não encontrado.");
+            }
+
             return res.status(200).json(appointment);
-        } catch (error) {
-            console.error("Erro ao buscar agendamento: ", error);
-            return res.status(404).json({ message: "Agendamento não encontrado." });
+        } catch (error: any) {
+            if (error instanceof NotFoundError) {
+                return res.status(404).json({ error: error.message });
+            }
+            if (error instanceof ValidationError) {
+                return res.status(400).json({ error: error.message });
+            }
+            return res.status(500).json({ error: error.message || "Erro interno do servidor." });
         }
     }
 
     async create(req: Request, res: Response) {
+        const { service_id, client_name, client_phone, date_time } = req.body;
+
         try {
+            if (!service_id) {
+                throw new ValidationError("O ID do serviço é obrigatório.");
+            }
+            if (!client_name || client_name.trim() === "") {
+                throw new ValidationError("O nome do cliente é obrigatório.");
+            }
+            if (!client_phone || client_phone.trim() === "") {
+                throw new ValidationError("O telefone do cliente é obrigatório.");
+            }
+            if (!date_time) {
+                throw new ValidationError("A data e hora do agendamento são obrigatórias.");
+            }
+
             const appointment = await this.appointmentRepository.create(req.body);
             return res.status(201).json(appointment);
-        } catch (error) {
-            console.error("Erro ao criar agendamento: ", error);
-            return res.status(500).json({ message: "Erro ao criar agendamento." });
+        } catch (error: any) {
+            if (error instanceof ValidationError) {
+                return res.status(400).json({ error: error.message });
+            }
+            return res.status(500).json({ error: error.message || "Erro interno do servidor." });
         }
     }
 
     async updateStatus(req: Request<{ id: string }>, res: Response) {
         const { id } = req.params;
-        if (!id) return res.status(400).json({ message: "ID não informado." });
+        const { status } = req.body;
 
         try {
-            const { status } = req.body;
+            if (!id) {
+                throw new ValidationError("O ID do agendamento é obrigatório.");
+            }
+
+            const validStatuses = ["scheduled", "completed", "canceled"];
+            if (!status || !validStatuses.includes(status)) {
+                throw new ValidationError("Status inválido. Deve ser 'scheduled', 'completed' ou 'canceled'.");
+            }
+
+            const appointmentExists = await this.appointmentRepository.findById(id);
+            if (!appointmentExists) {
+                throw new NotFoundError("Agendamento não encontrado para atualização de status.");
+            }
+
             const appointment = await this.appointmentRepository.updateStatus(id, status);
             return res.status(200).json(appointment);
-        } catch (error) {
-            console.error("Erro ao atualizar status: ", error);
-            return res.status(500).json({ message: "Erro ao atualizar status do agendamento." });
+        } catch (error: any) {
+            if (error instanceof NotFoundError) {
+                return res.status(404).json({ error: error.message });
+            }
+            if (error instanceof ValidationError) {
+                return res.status(400).json({ error: error.message });
+            }
+            return res.status(500).json({ error: error.message || "Erro interno do servidor." });
         }
     }
 
     async update(req: Request<{ id: string }>, res: Response) {
         const { id } = req.params;
-        if (!id) return res.status(400).json({ message: "ID não informado." });
 
         try {
-            const appointment = await this.appointmentRepository.update(id, req.body);
-            return res.status(200).json(appointment);
-        } catch (error) {
-            console.error("Erro ao atualizar agendamento: ", error);
-            return res.status(500).json({ message: "Erro ao atualizar agendamento." });
+            if (!id) {
+                throw new ValidationError("O ID do agendamento é obrigatório.");
+            }
+
+            const appointmentExists = await this.appointmentRepository.findById(id);
+            if (!appointmentExists) {
+                throw new NotFoundError("Agendamento não encontrado para atualização.");
+            }
+
+            const updatedAppointment = await this.appointmentRepository.update(id, req.body);
+            return res.status(200).json(updatedAppointment);
+        } catch (error: any) {
+            if (error instanceof NotFoundError) {
+                return res.status(404).json({ error: error.message });
+            }
+            if (error instanceof ValidationError) {
+                return res.status(400).json({ error: error.message });
+            }
+            return res.status(500).json({ error: error.message || "Erro interno do servidor." });
         }
     }
 
     async remove(req: Request<{ id: string }>, res: Response) {
         const { id } = req.params;
-        if (!id) return res.status(400).json({ message: "ID não informado." });
 
         try {
-            const appointment = await this.appointmentRepository.remove(id);
-            return res.status(200).json(appointment);
-        } catch (error) {
-            console.error("Erro ao deletar agendamento: ", error);
-            return res.status(500).json({ message: "Erro ao deletar agendamento." });
+            if (!id) {
+                throw new ValidationError("O ID do agendamento é obrigatório.");
+            }
+
+            const appointmentExists = await this.appointmentRepository.findById(id);
+            if (!appointmentExists) {
+                throw new NotFoundError("Agendamento não encontrado para remoção.");
+            }
+
+            const removedAppointment = await this.appointmentRepository.remove(id);
+            return res.status(200).json(removedAppointment);
+        } catch (error: any) {
+            if (error instanceof NotFoundError) {
+                return res.status(404).json({ error: error.message });
+            }
+            if (error instanceof ValidationError) {
+                return res.status(400).json({ error: error.message });
+            }
+            return res.status(500).json({ error: error.message || "Erro interno do servidor." });
         }
     }
 }

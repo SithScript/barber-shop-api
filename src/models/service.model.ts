@@ -4,5 +4,5 @@ export interface Service {
     description: string;
     price: number;
     estimated_minutes: number;
-    categoryId: string;
+    categoryId?: string;
 }
