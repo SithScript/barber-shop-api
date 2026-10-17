@@ -17,7 +17,7 @@ export class ServiceRepository {
             .from("services")
             .select("*, categories(name)")
             .eq("id", id)
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -28,7 +28,7 @@ export class ServiceRepository {
             .from("services")
             .insert([service])
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -40,7 +40,7 @@ export class ServiceRepository {
             .update(service)
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -52,7 +52,7 @@ export class ServiceRepository {
             .delete()
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;

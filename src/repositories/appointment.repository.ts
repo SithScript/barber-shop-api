@@ -17,7 +17,7 @@ export class AppointmentRepository {
             .from("appointments")
             .select("*, services(name, price)")
             .eq("id", id)
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -28,7 +28,7 @@ export class AppointmentRepository {
             .from("appointments")
             .insert([{ ...appointment, status: "scheduled" }])
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -40,7 +40,7 @@ export class AppointmentRepository {
             .update(appointment)
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -52,7 +52,7 @@ export class AppointmentRepository {
             .update({ status })
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -64,7 +64,7 @@ export class AppointmentRepository {
             .delete()
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;

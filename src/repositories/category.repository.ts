@@ -28,7 +28,7 @@ export class CategoryRepository {
             .from("categories")
             .insert([category])
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -40,7 +40,7 @@ export class CategoryRepository {
             .update(category)
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
@@ -52,7 +52,7 @@ export class CategoryRepository {
             .delete()
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
         return data;
