@@ -5,4 +5,5 @@ export interface Service {
     price: number;
     estimated_minutes: number;
     categoryId?: string;
+    is_active?: boolean;
 }

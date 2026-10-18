@@ -2,9 +2,11 @@ import type { Request, Response } from "express";
 import type { AppointmentRepository } from "../repositories/appointment.repository.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
 import { ValidationError } from "../errors/ValidationError.js";
+import { ServiceRepository } from "../repositories/service.repository.js";
 
 export class AppointmentController {
-    constructor(private appointmentRepository: AppointmentRepository) {
+    constructor(private appointmentRepository: AppointmentRepository, 
+                private serviceRepository: ServiceRepository) {
         this.getAll = this.getAll.bind(this);
         this.getById = this.getById.bind(this);
         this.create = this.create.bind(this);
@@ -63,6 +65,16 @@ export class AppointmentController {
             }
             if (!date_time) {
                 throw new ValidationError("A data e hora do agendamento são obrigatórias.");
+            }
+
+            const service = await this.serviceRepository.findById(service_id);
+
+            if (!service) {
+                throw new NotFoundError("Serviço informado não foi encontrado.")
+            }
+
+            if (service.is_active === false) {
+                throw new ValidationError("Não é possível agendar um serviço inativo")
             }
 
             const appointment = await this.appointmentRepository.create(req.body);
