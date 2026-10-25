@@ -4,7 +4,7 @@ export interface Appointment {
     clientPhone: string;
     serviceId: string;
     dateTime: string; // Formato ISO: "YYYY-MM-DDTHH:mm:ss"
-    status?: "scheduled" | "completed" | "canceled"; 
+    status?: "agendado" | "finalizado" | "cancelado"; 
     //Define o status do agendamento: agendado (scheduled), concluído (completed) ou cancelado (canceled)
     created_at?: string;
 }

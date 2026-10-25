@@ -5,8 +5,8 @@ import { ValidationError } from "../errors/ValidationError.js";
 import { ServiceRepository } from "../repositories/service.repository.js";
 
 export class AppointmentController {
-    constructor(private appointmentRepository: AppointmentRepository, 
-                private serviceRepository: ServiceRepository) {
+    constructor(private appointmentRepository: AppointmentRepository,
+        private serviceRepository: ServiceRepository) {
         this.getAll = this.getAll.bind(this);
         this.getById = this.getById.bind(this);
         this.create = this.create.bind(this);
@@ -77,6 +77,11 @@ export class AppointmentController {
                 throw new ValidationError("Não é possível agendar um serviço inativo")
             }
 
+            const existingAppointment = await this.appointmentRepository.findByDateTime(date_time);
+            if (existingAppointment) {
+                throw new ValidationError("Este horário já está preenchido por outro agendamento.");
+            }
+
             const appointment = await this.appointmentRepository.create(req.body);
             return res.status(201).json(appointment);
         } catch (error: any) {
@@ -96,9 +101,12 @@ export class AppointmentController {
                 throw new ValidationError("O ID do agendamento é obrigatório.");
             }
 
-            const validStatuses = ["scheduled", "completed", "canceled"];
+            // "scheduled" = Agendado, ainda vai acontecer.
+            // "completed" = Concluído, já foi finalizado.
+            // "canceled" = Cancelado, não será realizado.
+            const validStatuses = [ "agendado", "finalizado", "cancelado" ];
             if (!status || !validStatuses.includes(status)) {
-                throw new ValidationError("Status inválido. Deve ser 'scheduled', 'completed' ou 'canceled'.");
+                throw new ValidationError("Status inválido. Deve ser 'agendado', 'finalizado' ou 'cancelado'.");
             }
 
             const appointmentExists = await this.appointmentRepository.findById(id);

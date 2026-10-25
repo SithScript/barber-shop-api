@@ -26,7 +26,7 @@ export class AppointmentRepository {
     async create(appointment: Appointment) {
         const { data, error } = await supabase
             .from("appointments")
-            .insert([{ ...appointment, status: "scheduled" }])
+            .insert([{ ...appointment, status: "agendado" }])
             .select()
             .maybeSingle();
 
@@ -66,6 +66,18 @@ export class AppointmentRepository {
             .select()
             .maybeSingle();
 
+        if (error) throw error;
+        return data;
+    }
+    
+    async findByDateTime(dateTime: string) {
+        const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("date_time", dateTime)
+        .neq("status", "cancelado")
+        .maybeSingle();
+        
         if (error) throw error;
         return data;
     }
