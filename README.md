@@ -1,153 +1,102 @@
-# Barbershop Scheduling API
+# Barbershop Scheduling API – Sistema de Agendamento para Barbearia
 
-API REST para gerenciamento de agendamentos de barbearia, desenvolvida como atividade prática supervisionada (APS) para a disciplina de **Desenvolvimento BackEnd**, do curso de **Engenharia de Software** da **UniSenai-PR**, sob orientação do **Prof. Mateus Ramos**.
+## Descrição
 
----
+API REST desenvolvida para gerenciamento completo de atendimentos, catálogo de serviços e agendamentos de uma barbearia. O objetivo da aplicação é organizar o fluxo de agendamentos de forma escalável e padronizada, prevenindo conflitos de horários, organizando categorias (ex.: Cabelo, Barba, Combos) e seus respectivos serviços, além de fornecer aos clientes e administradores visibilidade sobre status e disponibilidade.
 
-## 1. Nome e Descrição do Projeto
-
-**Barbershop Scheduling API**
-
-- **Problema que busca resolver:** O agendamento manual de barbearias costuma gerar conflitos de horários, falta de padronização na listagem de serviços e dificuldades no acompanhamento do status do atendimento.
-- **Domínio escolhido:** Prestação de serviços e agendamentos para barbearias.
-- **Objetivo da API:** Fornecer uma interface centralizada e estruturada para gerenciar categorias de serviços, catálogo de cortes e tratamentos, e o fluxo completo de agendamento de horários dos clientes.
+**Objetivo da API:** fornecer endpoints para gerenciar o ciclo de vida completo (CRUD) de categorias, serviços e agendamentos, com persistência no Supabase (PostgreSQL), regras de negócio implementadas em classes ricas de domínio (POO), validações de consistência e conflitos de horários, documentação interativa via Swagger (OpenAPI 3.0) e testes automatizados com Vitest.
 
 ---
 
-## 2. Integrantes da Equipe
+## Identificação do Projeto e Equipe
 
-- Leofredo M. do Rosario Junior
-- Gustavo Cordeiro de Andrade
-
----
-
-## 3. Tecnologias Utilizadas
-
-- **Node.js**: Ambiente de execução JavaScript no servidor.
-- **TypeScript**: Superset do JavaScript que adiciona tipagem estática e segurança ao código.
-- **Express**: Framework web para gerenciamento de rotas, middlewares e requisições HTTP.
-- **Supabase**: Backend-as-a-Service utilizado para persistência dos dados em banco PostgreSQL.
-- **PostgreSQL**: Banco de dados relacional.
-- **TSX**: Executor TypeScript em tempo de desenvolvimento.
-- **Git**: Sistema de controle de versão.
+* **Projeto:** Barbershop Scheduling API
+* **Curso:** Engenharia de Software – 4º Período – Turma B
+* **Disciplina:** Desenvolvimento Back-End – UniSenai-PR
+* **Docente:** Prof. Mateus Ramos
+* **Integrantes da Equipe:**
+  * Leofredo M. do Rosario Junior
+  * Gustavo Cordeiro de Andrade
 
 ---
 
-## 4. Entidades e Relacionamento
+## Tecnologias e Padrões Utilizados
 
-### Entidades
-
-#### Categoria (`Category`)
-- `id`: Identificador único (UUID).
-- `name`: Nome da categoria (ex: Cabelo, Barba, Combos).
-- `description`: Descrição detalhada da categoria.
-- `created_at`: Data de criação do registro.
-
-#### Serviço (`Service`)
-- `id`: Identificador único (UUID).
-- `category_id`: Chave estrangeira que referencia a Categoria.
-- `name`: Nome do serviço (ex: Corte Social, Barba Completa).
-- `price`: Preço do serviço.
-- `estimated_minutes`: Tempo estimado de duração em minutos.
-- `created_at`: Data de criação do registro.
-
-#### Agendamento (`Appointment`)
-- `id`: Identificador único (UUID).
-- `service_id`: Chave estrangeira que referencia o Serviço.
-- `client_name`: Nome do cliente.
-- `client_phone`: Telefone do cliente.
-- `date_time`: Data e horário agendados.
-- `status`: Status do agendamento (`scheduled`, `completed`, `canceled`).
-- `created_at`: Data de criação do registro.
-
-### Relacionamentos
-
-- **Categoria -> Serviço**: Uma Categoria pode possuir vários Serviços, e cada Serviço pertence obrigatoriamente a uma Categoria (1:N).
-- **Serviço -> Agendamento**: Um Serviço pode estar associado a vários Agendamentos, e cada Agendamento refere-se a um único Serviço (1:N).
+* **Linguagem & Runtime:** Node.js (v20+ / v22+) & TypeScript
+* **Framework Web:** Express 5
+* **Banco de Dados:** PostgreSQL (via Supabase Client `@supabase/supabase-js`)
+* **Documentação Interativa:** Swagger UI & OpenAPI 3.0 (`swagger-ui-express`, `swagger-jsdoc`)
+* **Testes Automatizados:** Vitest com relatório de cobertura (V8) e Supertest
+* **Padrões de Arquitetura:**
+  * **Repository Pattern:** Separação completa entre regras de negócio e camada de acesso a dados (`CategoryRepository`, `ServiceRepository`, `AppointmentRepository`).
+  * **Orientação a Objetos (POO):** Modelos de domínio ricos (`Category`, `Service`, `Appointment`) com atributos privados, encapsulamento, setters com validação e método estático de restauração (`restore`).
+  * **Tratamento de Erros Personalizado:** Classes de exceção dedicadas (`ValidationError`, `NotFoundError`).
+  * **Prevenção de Conflitos e Inconsistências:** Validação de formato UUID, serviço ativo obrigatório para agendamentos e verificação contra horários duplicados no banco.
 
 ---
 
-## 5. Estrutura do Projeto
-
-O código-fonte segue o padrão arquitetural em camadas (MVC / Repository Pattern) conforme trabalhado em sala de aula:
+## Estrutura do Projeto
 
 ```text
 src/
-├── config/
-│   └── supabase.ts          # Configuração e conexão do cliente Supabase
-├── controllers/
-│   ├── appointment.controller.ts
-│   ├── category.controller.ts
-│   └── service.controller.ts # Gerenciamento de req/res, erros e status HTTP
-├── models/
-│   ├── appointment.model.ts
-│   ├── category.model.ts
-│   └── service.model.ts     # Interfaces e definições de tipos TypeScript
-├── repositories/
-│   ├── appointment.repository.ts
-│   ├── category.repository.ts
-│   └── service.repository.ts # Camada de comunicação direta com o Supabase
-├── routes/
-│   ├── appointment.routes.ts
-│   ├── category.routes.ts
-│   └── service.routes.ts    # Mapeamento das rotas e verbos HTTP
-├── app.ts                    # Configuração da aplicação e middlewares Express
-└── server.ts                 # Inicialização do servidor HTTP
-
-
-Aqui está o conteúdo do **tópico 6 até o final**, formatado em Markdown pronto para você copiar e colar diretamente no seu `README.md`:
-
-```markdown
-## 6. Configuração e Execução
-
-### Passos para execução:
-
-1. **Clonar o repositório:**
-   ```bash
-   git clone <URL_DO_REPOSITORIO>
-   cd barber-shop-api
-
+├── config/             # Conexão com Supabase e especificação do Swagger/OpenAPI
+├── controller/         # Manipuladores de requisições e respostas HTTP (Controllers)
+├── errors/             # Classes customizadas de erros (ValidationError, NotFoundError)
+├── models/             # Classes de domínio com encapsulamento e validações (POO)
+├── repository/         # Camada de comunicação com o Supabase (Repository Pattern)
+├── routes/             # Definição dos endpoints da API documentados com JSDoc OpenAPI
+├── tests/              # Testes unitários e de integração automatizados com Vitest
+├── app.ts              # Configuração do Express, Swagger UI, middlewares e rotas
+└── server.ts           # Inicialização do servidor HTTP
 ```
-
-2. **Instalar as dependências:**
-```bash
-npm install
-
-```
-
-
-3. **Configurar as variáveis de ambiente:**
-Crie um arquivo `.env` na raiz do projeto com base no arquivo `.env.example` fornecido.
-4. **Iniciar a aplicação em modo de desenvolvimento:**
-```bash
-npm run dev
-
-```
-
-
 
 ---
 
-## 7. Variáveis de Ambiente
+## Entidades e Relacionamentos
 
-Para executar a aplicação é necessário criar o arquivo `.env` contendo as credenciais do Supabase:
+### Categoria (`categories`)
 
-```env
-SUPABASE_URL=[https://seu-projeto.supabase.co](https://seu-projeto.supabase.co)
-SUPABASE_SECRET_KEY=sua-chave-anon-publica
-PORT=3001
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | UUID | Identificador único (Chave Primária) |
+| `name` | text | Nome da categoria (obrigatório, sem espaços vazios) |
+| `description` | text | Descrição detalhada da categoria |
+| `created_at` | timestamptz | Data e hora de criação do registro |
 
-```
+### Serviço (`services`)
 
-> **Atenção:** O arquivo `.env` contendo as chaves reais de acesso **não deve** ser enviado ao controle de versão Git. Utilize o arquivo `.env.example` no repositório.
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | UUID | Identificador único (Chave Primária) |
+| `category_id` | UUID | Chave estrangeira referenciando `categories(id)` |
+| `name` | text | Nome do serviço (obrigatório) |
+| `description` | text | Descrição do procedimento ou corte |
+| `price` | numeric(10,2) | Preço do serviço (obrigatório, $\ge 0$) |
+| `estimated_minutes` | integer | Duração estimada em minutos (inteiro $> 0$) |
+| `is_active` | boolean | Status de ativação do serviço (padrão: `true`) |
+| `created_at` | timestamptz | Data e hora de criação do registro |
+
+### Agendamento (`appointments`)
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | UUID | Identificador único (Chave Primária) |
+| `service_id` | UUID | Chave estrangeira referenciando `services(id)` |
+| `client_name` | text | Nome completo do cliente (obrigatório) |
+| `client_phone` | text | Telefone de contato do cliente (obrigatório) |
+| `date_time` | timestamptz | Data e horário agendados (obrigatório, sem duplicidade ativa) |
+| `status` | text | Status: `agendado`, `finalizado` ou `cancelado` (padrão: `agendado`) |
+| `created_at` | timestamptz | Data e hora de criação do registro |
+
+### Relacionamentos
+* **Category 1 : N Service** – Uma categoria possui múltiplos serviços. Cada serviço referencia uma categoria obrigatória (`category_id`).
+* **Service 1 : N Appointment** – Um serviço pode ter múltiplos agendamentos vinculados. Cada agendamento referencia um único serviço (`service_id`).
 
 ---
 
-## 8. Banco de Dados
+## Banco de Dados (Supabase / PostgreSQL)
 
-A persistência de dados utiliza tabelas relacionais no PostgreSQL hospedado pelo Supabase.
-
-### Tabela `categories`
+Script SQL para execução no **SQL Editor** do Supabase:
 
 ```sql
 CREATE TABLE categories (
@@ -157,103 +106,165 @@ CREATE TABLE categories (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-```
-
-### Tabela `services`
-
-```sql
 CREATE TABLE services (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  description TEXT,
   price NUMERIC(10,2) NOT NULL,
   estimated_minutes INTEGER NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-```
-
-### Tabela `appointments`
-
-```sql
 CREATE TABLE appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID REFERENCES services(id) ON DELETE RESTRICT,
+  service_id UUID NOT NULL REFERENCES services(id) ON DELETE RESTRICT,
   client_name TEXT NOT NULL,
   client_phone TEXT NOT NULL,
   date_time TIMESTAMP WITH TIME ZONE NOT NULL,
-  status TEXT NOT NULL DEFAULT 'scheduled',
+  status TEXT NOT NULL DEFAULT 'agendado',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 ```
 
 ---
 
-## 9. Documentação dos Endpoints
+## Como Configurar e Executar
 
-| Método | Endpoint | Descrição | Dados Necessários |
-| --- | --- | --- | --- |
-| **GET** | `/categories` | Lista todas as categorias | Nenhum |
-| **GET** | `/categories/:id` | Consulta uma categoria por ID | Params: `id` |
-| **POST** | `/categories` | Cadastra uma nova categoria | Body JSON: `name`, `description` |
-| **PUT** | `/categories/:id` | Atualiza uma categoria | Params: `id`, Body JSON |
-| **DELETE** | `/categories/:id` | Remove uma categoria | Params: `id` |
-| **GET** | `/services` | Lista todos os serviços | Nenhum |
-| **GET** | `/services/:id` | Consulta um serviço por ID | Params: `id` |
-| **POST** | `/services` | Cadastra um novo serviço | Body JSON: `category_id`, `name`, `price`, `estimated_minutes` |
-| **PUT** | `/services/:id` | Atualiza um serviço | Params: `id`, Body JSON |
-| **DELETE** | `/services/:id` | Remove um serviço | Params: `id` |
-| **GET** | `/appointments` | Lista todos os agendamentos | Nenhum |
-| **GET** | `/appointments/:id` | Consulta um agendamento por ID | Params: `id` |
-| **POST** | `/appointments` | Cria um novo agendamento | Body JSON: `client_name`, `client_phone`, `service_id`, `date_time` |
-| **PUT** | `/appointments/:id` | Atualiza dados de um agendamento | Params: `id`, Body JSON |
-| **PATCH** | `/appointments/:id/status` | Atualiza o status do agendamento | Params: `id`, Body JSON: `status` |
-| **DELETE** | `/appointments/:id` | Remove um agendamento | Params: `id` |
+### 1. Clonar o repositório
+```bash
+git clone https://github.com/SithScript/barber-shop-api.git
+cd barber-shop-api
+```
+
+### 2. Instalar as dependências
+```bash
+npm install
+```
+
+### 3. Configurar variáveis de ambiente
+Crie o arquivo `.env` na raiz do projeto:
+```env
+PORT=3001
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_SECRET_KEY=sua-chave-secreta-service-role
+```
+
+### 4. Executar a aplicação
+* **Modo de desenvolvimento (com auto-reload nativo do Node):**
+  ```bash
+  npm run dev
+  ```
+* **Executar a suíte de testes (Vitest):**
+  ```bash
+  npm test
+  ```
+* **Executar os testes com relatório de cobertura:**
+  ```bash
+  npm run test:coverage
+  ```
+* **Compilação e execução em produção:**
+  ```bash
+  npm run build
+  npm start
+  ```
 
 ---
 
-## 10. Exemplos de Requisições
+## Documentação Interativa com Swagger
 
-### Criação de Categoria (`POST /categories`)
+Ao iniciar a aplicação, a documentação OpenAPI completa estará disponível em:
+* **Interface interativa:** [http://localhost:3001/api-docs](http://localhost:3001/api-docs)
+* **Acesso à rota raiz (`/`):** Redireciona automaticamente para `/api-docs`.
 
+---
+
+## Documentação dos Endpoints
+
+### Categorias (`/categories`)
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/categories` | Lista todas as categorias cadastradas |
+| `GET` | `/categories/:id` | Retorna uma categoria específica por ID |
+| `GET` | `/categories/search/:keyword` | Pesquisa categorias por palavra-chave (nome ou descrição) |
+| `POST` | `/categories` | Cadastra uma nova categoria |
+| `PUT` | `/categories/:id` | Atualiza os dados de uma categoria existente |
+| `DELETE` | `/categories/:id` | Remove uma categoria pelo ID |
+
+### Serviços (`/services`)
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/services` | Lista todos os serviços cadastrados |
+| `GET` | `/services/:id` | Retorna um serviço específico por ID |
+| `GET` | `/services/category/:categoryId` | Lista todos os serviços de uma categoria específica |
+| `GET` | `/services/search/:keyword` | Pesquisa serviços por palavra-chave |
+| `POST` | `/services` | Cadastra um novo serviço |
+| `PUT` | `/services/:id` | Atualiza dados de um serviço existente |
+| `DELETE` | `/services/:id` | Remove um serviço pelo ID |
+
+### Agendamentos (`/appointments`)
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/appointments` | Lista todos os agendamentos cadastrados |
+| `GET` | `/appointments/:id` | Retorna um agendamento específico por ID |
+| `GET` | `/appointments/service/:serviceId` | Lista agendamentos vinculados a um serviço |
+| `POST` | `/appointments` | Cria um novo agendamento com validação de serviço ativo e conflito de horário |
+| `PATCH` | `/appointments/:id/status` | Atualiza apenas o status (`agendado`, `finalizado`, `cancelado`) |
+| `PUT` | `/appointments/:id` | Atualiza dados gerais de um agendamento existente |
+| `DELETE` | `/appointments/:id` | Remove um agendamento pelo ID |
+
+---
+
+## Exemplos de Requisições
+
+### Criar Categoria (`POST /categories`)
 ```json
 {
-  "name": "Cabelo",
-  "description": "Cortes e tratamentos capilares diversos"
+  "name": "Barba e Rosto",
+  "description": "Serviços especializados em cuidados faciais e barba"
 }
-
 ```
 
-### Criação de Serviço (`POST /services`)
-
+### Criar Serviço (`POST /services`)
 ```json
 {
   "category_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-  "name": "Corte Degradê",
-  "price": 45.00,
-  "estimated_minutes": 40
+  "name": "Barba Terapia Completa",
+  "description": "Barba alinhada com toalha quente, hidratação e navalha",
+  "price": 40.0,
+  "estimated_minutes": 35
 }
-
 ```
 
-### Criação de Agendamento (`POST /appointments`)
-
+### Criar Agendamento (`POST /appointments`)
 ```json
 {
+  "service_id": "b1ffbc88-8c0b-4ef8-bb6d-7bb9bd380a22",
   "client_name": "Lucas Gabriel",
   "client_phone": "41999998888",
-  "service_id": "b1ffbc88-8c0b-4ef8-bb6d-7bb9bd380a22",
   "date_time": "2026-10-15T14:30:00"
 }
-
 ```
 
-### Atualização de Status (`PATCH /appointments/:id/status`)
-
+### Atualizar Status (`PATCH /appointments/:id/status`)
 ```json
 {
-  "status": "completed"
+  "status": "finalizado"
 }
-
 ```
+
+---
+
+## Códigos de Resposta HTTP
+
+| Código | Significado |
+|---|---|
+| `200 OK` | Consulta, atualização ou remoção concluída com sucesso |
+| `201 Created` | Novo registro criado com sucesso |
+| `400 Bad Request` | Falha de validação, parâmetros ausentes/inválidos ou conflito de horário |
+| `404 Not Found` | Recurso não encontrado |
+| `500 Internal Server Error` | Erro interno do servidor ou falha de conexão |
