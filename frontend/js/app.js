@@ -211,12 +211,12 @@ function cashier() {
     <button class="pri" style="width:100%;padding:12px" onclick="pay()">Concluir pagamento</button>` : '<p class="mut">Selecione um atendimento à esquerda para cobrar.</p>';
     return `<h2>Caixa</h2><div class="split"><div class="box"><h3 style="margin-bottom:10px">Aguardando pagamento</h3><div class="list">${pend.map(x => `<button class="item ${x.id === C.id ? 'on' : ''}" onclick="pick('${x.id}');render()"><b>${esc(x.client_name)}</b><span>${esc(svc(x.service_id)?.name || '—')} · ${brl(svc(x.service_id)?.price)} · ${dt(x.date_time)}</span></button>`).join('') || '<p class="mut">Nenhum atendimento pendente.</p>'}</div></div>
   <div class="box">${right}</div></div>
-  <div class="bar" style="margin-top:26px"><h3>Fechamento de hoje</h3><span class="sp"></span><button onclick="csv()">Exportar CSV</button></div>
-  <div class="stats">${Object.entries(PM).map(([k, v]) => { const l = tp.filter(p => p.m === k); return `<div class="box"><div class="mut">${v} · ${l.length}</div><div class="num" style="font-size:24px">${brl(l.reduce((t, p) => t + p.t, 0))}</div></div>`; }).join('')}
-  <div class="box" style="border-color:var(--acc)"><div class="mut">Total líquido</div><div class="num" style="font-size:24px">${brl(tp.reduce((t, p) => t + p.t, 0))}</div><div class="mut">${brl(tp.reduce((t, p) => t + p.d, 0))} em descontos</div></div></div>
-  <div class="tw"><table><thead><tr><th>Hora</th><th>Cliente</th><th>Serviço</th><th>Subtotal</th><th>Desconto</th><th>Total</th><th>Forma</th></tr></thead><tbody>${tp.map(p => `<tr><td>${hm(p.at)}</td><td>${esc(p.client)}</td><td>${esc(p.service)}</td><td>${brl(p.g)}</td><td>${brl(p.d)}</td><td><b>${brl(p.t)}</b></td><td>${PM[p.m]}${p.m === 'credito' && p.ins > 1 ? ` ${p.ins}x` : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="mut">Nenhum pagamento hoje.</td></tr>'}</tbody></table></div>`;
+  <div class="bar" style="margin-top:22px"><span class="mut">Recebido hoje</span><b class="num" style="font-size:26px">${brl(tp.reduce((t, p) => t + p.t, 0))}</b><span class="sp"></span><a href="#revenue">Ver faturamento →</a></div>`;
 }
+let paying = false;
 async function pay() {
+    if (paying)
+        return;
     const a = S.apps.find(x => x.id === C.id), r = calc();
     if (!a)
         return;
@@ -224,28 +224,124 @@ async function pay() {
         return toast('Valor recebido menor que o total', 1);
     if (C.dt === 'pct' && C.dv > 100)
         return toast('Desconto máximo é 100%', 1);
+    paying = true;
     try {
         if (a.status !== 'finalizado')
             await api(`/appointments/${a.id}/status`, 'PATCH', { status: 'finalizado' });
-        P.push({ id: crypto.randomUUID(), appId: a.id, client: a.client_name, service: svc(a.service_id)?.name || '—', g: r.g, d: r.d, t: r.t, m: C.m, ins: C.m === 'credito' ? C.ins : 1, at: new Date().toISOString() });
+        P.push({ id: crypto.randomUUID(), appId: a.id, svcId: a.service_id, client: a.client_name, service: svc(a.service_id)?.name || '—', g: r.g, d: r.d, t: r.t, m: C.m, ins: C.m === 'credito' ? C.ins : 1, at: new Date().toISOString() });
         savePay();
         toast(`Pagamento de ${brl(r.t)} registrado`);
-        C = { ...C, id: null };
+        C = { id: null, dt: 'pct', dv: 0, m: 'pix', rc: 0, ins: 1 };
         load();
     }
     catch (e) {
         toast(e.message, 1);
     }
+    finally {
+        paying = false;
+    }
 }
-function csv() {
+function csv(list = P) {
     const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const rows = P.map(p => [dt(p.at), p.client, p.service, p.g, p.d, p.t, PM[p.m], p.ins].map(q).join(';'));
+    const rows = list.map(p => [dt(p.at), p.client, p.service, p.g, p.d, p.t, PM[p.m], p.ins].map(q).join(';'));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['\ufeff' + ['Data', 'Cliente', 'Serviço', 'Subtotal', 'Desconto', 'Total', 'Forma', 'Parcelas'].join(';') + '\n' + rows.join('\n')], { type: 'text/csv' }));
-    a.download = 'caixa.csv';
+    a.download = 'caixa-' + ymd(new Date()) + '.csv';
     a.click();
 }
-const V = { dashboard, cashier, appointments, services, categories };
+/* ---------- Faturamento ---------- */
+const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+let R = { g: 'mes', ref: ymd(new Date()) };
+const sum = (l, k = 't') => l.reduce((t, p) => t + p[k], 0);
+const inRange = (p, g, ref) => {
+    const d = new Date(p.at), [y, m, day] = ref.split('-').map(Number);
+    return d.getFullYear() === y && (g === 'ano' || (d.getMonth() + 1 === m && (g === 'mes' || d.getDate() === day)));
+};
+const shift = (ref, g) => {
+    const d = new Date(ref + 'T12:00');
+    if (g === 'dia') d.setDate(d.getDate() - 1);
+    else if (g === 'mes') { d.setDate(1); d.setMonth(d.getMonth() - 1); }
+    else d.setFullYear(d.getFullYear() - 1);
+    return ymd(d);
+};
+const revList = () => P.filter(p => inRange(p, R.g, R.ref));
+function series(L) {
+    const [y, m] = R.ref.split('-').map(Number);
+    let n, lab, idx;
+    if (R.g === 'mes') { n = new Date(y, m, 0).getDate(); lab = i => i + 1; idx = d => d.getDate() - 1; }
+    else if (R.g === 'ano') { n = 12; lab = i => MESES[i]; idx = d => d.getMonth(); }
+    else { n = 24; lab = i => i + 'h'; idx = d => d.getHours(); }
+    const v = Array(n).fill(0);
+    L.forEach(p => v[idx(new Date(p.at))] += p.t);
+    let a = 0, b = n - 1;
+    if (R.g === 'dia') { const f = v.findIndex(x => x > 0), l = v.map(x => x > 0).lastIndexOf(true); a = f < 0 ? 8 : Math.min(f, 8); b = l < 0 ? 18 : Math.max(l, 18); }
+    return v.map((x, i) => [lab(i), x]).slice(a, b + 1);
+}
+const group = (L, key) => {
+    const o = {};
+    L.forEach(p => { const k = key(p); o[k] = o[k] || { t: 0, c: 0 }; o[k].t += p.t; o[k].c++; });
+    return Object.entries(o).sort((a, b) => b[1].t - a[1].t);
+};
+const hbars = (rows) => { const mx = Math.max(...rows.map(r => r[1]), 0); return rows.map(([n, v, c]) => `<div class="hr"><span>${esc(n)}</span><div class="tr"><i style="width:${mx ? v / mx * 100 : 0}%"></i></div><b>${brl(v)}</b><small>${c}</small></div>`).join('') || '<p class="mut">Sem dados no período.</p>'; };
+function revenue() {
+    const now = ymd(new Date()), L = revList(), tot = sum(L), cnt = L.length, gross = sum(L, 'g'), disc = sum(L, 'd');
+    const k = (t, g) => { const l = P.filter(p => inRange(p, g, now)); return `<div class="box stat"><div class="mut">${t}</div><div class="num">${brl(sum(l))}</div><div class="mut">${l.length} atendimento${l.length === 1 ? '' : 's'}</div></div>`; };
+    const ref = new Date(R.ref + 'T12:00');
+    const title = R.g === 'dia' ? ref.toLocaleDateString('pt-BR', { dateStyle: 'long' }) : R.g === 'mes' ? ref.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : String(ref.getFullYear());
+    const sr = series(L), mx = Math.max(...sr.map(s => s[1]), 0);
+    const prevRef = shift(R.ref, R.g), prev = sum(P.filter(p => inRange(p, R.g, prevRef)));
+    const vr = prev ? (tot - prev) / prev * 100 : null;
+    const sv = group(L, p => p.service), mt = group(L, p => p.m), wd = group(L, p => DIAS[new Date(p.at).getDay()]);
+    const peak = R.g === 'dia' ? sr.reduce((a, b) => b[1] > a[1] ? b : a, ['—', 0]) : null;
+    const share = (x) => tot ? Math.round(x / tot * 100) + '%' : '—';
+    const ins = (t, v, s = '') => `<div class="box ins"><div class="mut">${t}</div><b>${v}</b><div class="mut">${s}</div></div>`;
+    return `<h2>Faturamento</h2>
+  <div class="stats">${k('Hoje', 'dia')}${k('Este mês', 'mes')}${k('Este ano', 'ano')}</div>
+  <div class="bar"><h3 style="text-transform:capitalize">${title}</h3><span class="sp"></span>
+    <div class="seg">${[['dia', 'Dia'], ['mes', 'Mês'], ['ano', 'Ano']].map(([g, l]) => `<button class="${R.g === g ? 'on' : ''}" onclick="R.g='${g}';render()">${l}</button>`).join('')}</div>
+    <input type="date" aria-label="Data de referência" value="${R.ref}" onchange="if(this.value){R.ref=this.value;render()}"></div>
+  <div class="stats">
+    <div class="box stat" style="border-top-color:var(--acc)"><div class="mut">Faturamento líquido</div><div class="num">${brl(tot)}</div><div class="mut">${cnt} atendimento${cnt === 1 ? '' : 's'}</div></div>
+    ${ins('Ticket médio', brl(cnt ? tot / cnt : 0), 'por atendimento')}
+    ${ins('Descontos', brl(disc), gross ? (disc / gross * 100).toFixed(1).replace('.', ',') + '% do valor bruto' : '—')}
+    ${ins('Vs. período anterior', vr === null ? '—' : `<span class="${vr >= 0 ? 'up' : 'dn'}">${vr >= 0 ? '+' : ''}${vr.toFixed(1).replace('.', ',')}%</span>`, prev ? 'anterior: ' + brl(prev) : 'sem dados anteriores')}
+  </div>
+  <div class="box" style="margin-bottom:14px"><h3>Evolução</h3><div class="chart">${sr.map(([l, v]) => `<div class="cb" title="${l}: ${brl(v)}"><i style="height:calc((100% - 22px) * ${mx ? v / mx : 0})"></i><span>${l}</span></div>`).join('')}</div></div>
+  <div class="g2">
+    <div class="box"><h3>Formas de pagamento</h3>${hbars(Object.keys(PM).map(m => [PM[m], (mt.find(x => x[0] === m) || [0, { t: 0, c: 0 }])[1].t, (mt.find(x => x[0] === m) || [0, { t: 0, c: 0 }])[1].c]))}</div>
+    <div class="box"><h3>Serviços que mais faturam</h3>${hbars(sv.slice(0, 6).map(([n, o]) => [n, o.t, o.c]))}</div>
+  </div>
+  <div class="stats">
+    ${ins('Serviço líder', sv[0] ? esc(sv[0][0]) : '—', sv[0] ? share(sv[0][1].t) + ' do faturamento' : '')}
+    ${ins('Pagamento preferido', mt[0] ? PM[mt[0][0]] : '—', mt[0] ? share(mt[0][1].t) + ' do faturamento' : '')}
+    ${R.g === 'dia' ? ins('Horário de pico', peak && peak[1] ? peak[0] : '—', peak && peak[1] ? brl(peak[1]) : '') : ins('Melhor dia da semana', wd[0] ? wd[0][0] : '—', wd[0] ? brl(wd[0][1].t) : '')}
+  </div>
+  <div class="bar"><h3>Movimentações</h3><span class="sp"></span><button onclick="csv(revList())">Exportar período (CSV)</button></div>
+  <div class="tw"><table><thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Subtotal</th><th>Desconto</th><th>Total</th><th>Forma</th></tr></thead><tbody>${[...L].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 200).map(p => `<tr><td>${dt(p.at)}</td><td>${esc(p.client)}</td><td>${esc(p.service)}</td><td>${brl(p.g)}</td><td>${brl(p.d)}</td><td><b>${brl(p.t)}</b></td><td>${PM[p.m]}${p.m === 'credito' && p.ins > 1 ? ` ${p.ins}x` : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="mut">Nenhum pagamento neste período.</td></tr>'}</tbody></table></div>
+  <div class="box" style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap;align-items:center"><span class="mut" style="flex:1;min-width:240px">Os pagamentos ficam salvos neste navegador. Faça backup com frequência para não perder o histórico financeiro.</span>
+    <button onclick="backup()">Fazer backup</button><label class="sm" style="margin:0;cursor:pointer;border:1px solid var(--ln);border-radius:var(--r);padding:5px 11px;color:var(--tx)">Restaurar backup<input type="file" accept=".json" hidden onchange="restore(this)"></label></div>`;
+}
+function backup() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(P, null, 1)], { type: 'application/json' }));
+    a.download = 'backup-caixa-' + ymd(new Date()) + '.json';
+    a.click();
+}
+function restore(el) {
+    const f = el.files[0];
+    if (!f) return;
+    f.text().then(t => {
+        try {
+            const l = JSON.parse(t);
+            if (!Array.isArray(l)) throw 0;
+            const ids = new Set(P.map(p => p.id)), add = l.filter(p => p && p.id && typeof p.t === 'number' && !ids.has(p.id));
+            P = [...P, ...add]; savePay(); toast(`${add.length} pagamentos importados`); render();
+        } catch { toast('Arquivo de backup inválido', 1); }
+    });
+}
+const V = { dashboard, cashier, revenue, appointments, services, categories };
 function render() {
     const v = V[location.hash.slice(1)] ? location.hash.slice(1) : 'dashboard';
     document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.hash === '#' + v));
